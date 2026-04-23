@@ -5,8 +5,9 @@
 
 // quadrature encodes speed and phase (for direction), see EE. 
 
-#include<stdio>; 
+#include <stdio.h>
 using namespace std;
+#include <stdint.h>
 #include "driver/pulse_cnt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -82,8 +83,8 @@ void motor_speed ( void *args ) {
 void setup() {
 
 bool system_on = true; 
-float start_time = esp_timer_get_time(); // I think this should be a float no?
-float cpu_utilization; 
+uint64_t start_time = esp_timer_get_time(); // I think this should be a float no?
+uint64_t cpu_utilization; 
 int rpm; 
 cout << "Welcome to hell" << "We hope you enjoy your stay" << endl; 
 while(system_on) {
