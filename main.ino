@@ -34,6 +34,10 @@ using namespace std;
 
 #define LED_UPDATE_HZ 100U
 
+#define Ki 0.1 // utilized for getting it "up to speed" as slow/fast as possible
+#define Kp 0.1 // used for  
+#define Kd 0.1 // used for oscillations/ringing (?)
+
 // initialize PCNT periphereal (unit & channel) 
 pcnt_unit_handle_t mypcnt = 0;  // each unit on the chip can contain multiple channels
 pcnt_channel_handle_t mychannel = 0; // a channel can track pulses on one signal at a time 
@@ -92,6 +96,16 @@ xTaskCreate(compute_pwm, "compute-pwm", 1<<16, 0, configMAX_PRIORITIES -1, &comp
 *
 *  Set up as a periodic task that runs infinitely, but vTaskDelayUntil() forces it awake. 
 *  Keeps track of total execution time in taskBTotal. 
+
+--- FROM MOTOR CONTROL SECTION ---
+*  Invoke another task to set the LEDC PWM output value to control the motor. In this case, assume
+*  error = setpoint - motor_speed;
+*  derivative_error = error - error_read_in_previous_period;
+*  integral_error = error + integral_error
+*  You can then multiply each of these by the Kd, Kd, and Ki parameters and use the result to set the
+*  PWM value 
+*  MOTOR CONTROL invokes this PWM task that sets the LEDC PWM output value to control the motor. Use results post-kd/ki to set the PWM value. 
+*  So.... control theory...? 
 */
 
 // used for total execution time of each task (A and B)  
