@@ -73,26 +73,44 @@ pcnt_unit_enable(mypcnt); // ensure its on
 pcnt_unit_start(mypcnt);  // start it up 
 
 // i suppose there will have to be a loop to read and then clear, this is how we would do that 
+// must read the count before it reaches 2^14-1 = 16383 count
 pcnt_unit_get_count(mypcnt, &val); 
 pcnt_unit_clear_count(mypcnt);
-// must read the count before it reaches 2^14-1 = 16383 count
 
-// docs say we will need 2 tasks, 1 to monitor motor speed, and one to control PWM signal. (loop task to monitor cpu)
-// refer to doc for my structure here
-
-
-// I think there are just so RTOS has a copy? since we define the function behavior below 
 
 // initialize obj motor speed handle of taskhandle type 
 TaskHandle_t motor_speed_handle; 
 // create motor_speed task with 64kb mem on stack, highest priority, and address of obj of handle. 
 xTaskCreate(motor_speed,"monitoring-motor-speed", 1<<16, 0, configMAX_PRIORITIES -1, &motor_speed_handle);
+// track pwm freertos task. 
 xTaskCreate(compute_pwm, "compute-pwm", 1<<16, 0, configMAX_PRIORITIES -1, &compute_pwm_handle);
 
+
+/*  LEDC controls PWM signal
+*  PWM speed goes into motor 
+*  TODO How many arguments passed into the task? Change fourth argument if not 0.
+*
+*  Set up as a periodic task that runs infinitely, but vTaskDelayUntil() forces it awake. 
+*  Keeps track of total execution time in taskBTotal. 
+*/
+
+// used for total execution time of each task (A and B)  
+uint64_t taskATotal = 0; 
+uint64_t taskBTotal = 0;
+
 void compute_pwm (void *args) {
+  uint64_t start_task; 
+  TickType_t xLastWakeTime = xTaskGetTickCount(); 
+  TickType_t xTimeIncrement = pdMS_TO_TICKS(TASK_PERIOD_IN_MS);
 
+  for(;;) {
+    start_task = esp_time_get_time(); 
 
-
+    // compute pwm code here 
+    
+    taskBTotal += esp_timer_get_time() - start_task; 
+    vTaskDelayUntil(&xLastWakeTime,xTimeIncrement);
+  }
 }
 
 // task functons can be setup like so
@@ -115,8 +133,7 @@ void motor_speed ( void *args ) {
 void setup() {
 
   bool system_on = true; 
-  uint64_t start_time = esp_timer_get_time(); // I think this should be a float no?
-  uint64_t cpu_utilization; 
+  
   int rpm; 
 
   while(system_on) {
@@ -132,8 +149,8 @@ void setup() {
 }
 
 void loop() {
-  // runs in FreeRTOS task at lowest priority 
-  // monitor utilization of CPU here
+  // Additional note: Loop() runs in FreeRTOS task at lowest priority 
+  // LAB INSTRUCTIONS SAY: Monitor the CPU utilization of both tasks and report each every second on the console using the loop() function.
 }
 
 }
