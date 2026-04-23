@@ -15,7 +15,10 @@
 using namespace std;
 
 #define BRAKEPIN = 21;
-
+#define ENCODER_A = 6;
+#define ENCODER_B = 7;
+#define DIRECTION = 4;
+#define PWM = 5;
 
 
 // stuff from the last lab 
@@ -74,17 +77,56 @@ pcnt_unit_clear_count(mypcnt);
 // initialize obj motor speed handle of taskhandle type 
 TaskHandle_t motor_speed_handle; 
 // create motor_speed task with 64kb mem on stack, highest priority, and address of obj of handle. 
-xTaskCreate(motor_speed,"monitoring the motor speed", 1<<16, 0, configMAX_PRIORITIES -1, &motor_speed_handle);
+xTaskCreate(
+  motor_speed, // function
+  "monitoring the motor speed", // name 
+  1<<16, // amt of data on stack
+  0, // parameters
+  configMAX_PRIORITIES -1, // priority 
+  &motor_speed // handle
+  );
 
-// task functons can be setup like so
-void motor_speed ( void *args ) {
+xTaskCreate (
+  monitor_cpu, 
+  "monitor cpu usage",
+  1<<16, 
+  0,
+  2, // I guess this is less priority than driving motor? 
+  &monitor_cpu
+  );
+ 
+
+void monitor_cpu () {
+
+}
+
+// the motor speed needs to 
+//  1.) set the speed of motor via PWM
+//  2.) calculate rpm from given params, read actual rpm
+//  3.) based on error we adjust via PID
+void motor_speed () {
   uint64_t start_task; 
   TickType_t xLastWakeTime = xTaskGetTickCount(); 
-  TickType_t xTimeIncrement = pdMS_TO_TICKS(TASK_PERIOD_IN_MS);
+  TickType_t loop_time = pdMS_TO_TICKS(10); // 10ms loop
 
-  for(;;) { // infinite loop, you learn something new every day. why not just while (!bool) and set bool = 0?
-    start_task = esp_time_get_time(); 
+  // PID Variables
+  float Kp = 1.0f, Ki = 01.f ,Kd = 0.01f;
+  float integral = 0.0f;
+  float prevError = 0.0f;
+  int f = 800; //default rpm. PID will mut this
 
+  for(;;) { // infinite loop 
+  // start task, make sure to get time 
+  start_task = esp_time_get_time();
+
+  // send PWM to motor
+  digitalWrite(5, f); // register 5.
+  REG_READ(ENCODER_B
+  //
+
+  error = setpoint - motor_speed; // where from ?
+  derivative_error = error - prevError; 
+  integral_error = error + integral;
     // motor speed code here 
     REG_WRITE(REG_ADDRESS, DATA);  // define above if possible, data is mutable for speed?  
     
@@ -95,18 +137,25 @@ void motor_speed ( void *args ) {
     
     }
    }
+void setup_LEDC(){
+  REG_WRITE(0x600c0018, HIGH);
+
+}
+
 
 void setup() {
   Serial.begin(115200); 
   delay(500);
   pinMode(LED_PIN, OUTPUT); // is this right for motor? 
   setup_LEDC(); 
+  REG_SET_BIT(DIRECTION, 0);// drive direction low  
   
+
   bool system_on = true; 
-  float start_time = esp_timer_get_time(); // I think this should be a float no?
-  float cpu_utilization; 
-  int rpm; 
-  cout << "Welcome to hell" << "We hope you enjoy your stay" << endl; 
+  float start_time = esp_timer_get_time(); // I think this should be a float no 
+  cout << "Welcome to hell" << "We hope you enjoy your stay" << endl;
+
+// loop for pwm 
     while(system_on) {
       // track cpu utilization 
       float cpu_utilization = taskATotal / (esp_timer_get_time-start_time); 
