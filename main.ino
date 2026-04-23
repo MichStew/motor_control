@@ -5,11 +5,25 @@
 
 // quadrature encodes speed and phase (for direction), see EE. 
 
-#include<stdio>; 
-using namespace std;
+#include<stdio.h> 
+#include<stdint.h>
+#include<Arduino.h> 
+#include<math.h>
 #include "driver/pulse_cnt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+using namespace std;
+
+#define BRAKEPIN = 21;
+
+
+
+// stuff from the last lab 
+#define // how to talk to motor
+
+#define LEDC_TIMER0_CONF_REG 0x600190A0 // set reference clock, divider, and duty cycle width register address purpose
+#define LEDC_CONF_REG 0x600190D0 //Enables and selects LEDC clock
+
 
 // initialize PCNT periphereal (unit & channel) 
 pcnt_unit_handle_t mypcnt = 0; 
@@ -21,7 +35,7 @@ pcnt_unit_config_t myunitconfig = {
   .high_limit  = (1 << 14), 
   .intr_priority = 0, 
   .flags = {
-    .accum_count = 0
+  .accum_count = 0
   }
 };
 
@@ -29,10 +43,10 @@ pcnt_chan_config_t mychannelconfig = {
   .edge_gpio_num = <pin>, 
   .level_gpio_num = -1,
   .flags = {
-    .invert_edge_input = 0,
-    .invert_level_input = 0,
-    .virt_edge_io_level = 0,
-    .io_loop_back = 0;
+  .invert_edge_input = 0,
+  .invert_level_input = 0,
+  .virt_edge_io_level = 0,
+  .io_loop_back = 0;
 }};
 
 // initialize structs of type (struct) 
@@ -72,31 +86,38 @@ void motor_speed ( void *args ) {
     start_task = esp_time_get_time(); 
 
     // motor speed code here 
+    REG_WRITE(REG_ADDRESS, DATA);  // define above if possible, data is mutable for speed?  
+    
     
     // ** hint ** taskATotal can be used to monitor cpu utilization for a task.
-    taskATotal += esp_timer_get_time() - start_task; 
-    vTaskDelayUntil(&xLastWakeTime,xTimeIncrement);
+     vTaskDelayUntil(&xLastWakeTime,xTimeIncrement);
+     return taskATotal += esp_timer_get_time() - start_task; // return to main loop so we can monitor 
+    
     }
    }
 
 void setup() {
-
-bool system_on = true; 
-float start_time = esp_timer_get_time(); // I think this should be a float no?
-float cpu_utilization; 
-int rpm; 
-cout << "Welcome to hell" << "We hope you enjoy your stay" << endl; 
-while(system_on) {
-  // track cpu utilization 
-  float cpu_utilization = taskATotal / (esp_timer_get_time-start_time); 
-  int rpm = (60 * 100) / f; // we need to set/get f here somehow
-  if (button_pressed) {
-
-}
-
-rpm += rpm / f;
-
-}
-
-
+  Serial.begin(115200); 
+  delay(500);
+  pinMode(LED_PIN, OUTPUT); // is this right for motor? 
+  setup_LEDC(); 
+  
+  bool system_on = true; 
+  float start_time = esp_timer_get_time(); // I think this should be a float no?
+  float cpu_utilization; 
+  int rpm; 
+  cout << "Welcome to hell" << "We hope you enjoy your stay" << endl; 
+    while(system_on) {
+      // track cpu utilization 
+      float cpu_utilization = taskATotal / (esp_timer_get_time-start_time); 
+      int rpm = (60 * 100) / f; // we need to set/get f here somehow
+      REG_CLR_BIT(R, address[3]) // pwn bit on board (maybe)
+      
+      for(i  
+      REG_SET_BIT(21, HIGH) // clear -> set.
+       
+      if () {
+        system_on = false; // break loop
+        break; 
+    }}
 }
