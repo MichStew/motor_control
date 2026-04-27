@@ -13,15 +13,15 @@ constexpr uint8_t PWM_PIN = 5;
 constexpr uint8_t ENCODER_A_PIN = 6;
 constexpr uint8_t ENCODER_B_PIN = 7;
 
-constexpr uint8_t BRAKE_MODE = 0;
+constexpr uint8_t BRAKE_MODE = HIGH;
 constexpr uint8_t DIRECTION_LEVEL = LOW;
 
-constexpr uint8_t PWM_CHANNEL = 0;
-constexpr uint32_t PWM_FREQ_HZ = 20000;
-constexpr uint8_t PWM_RES_BITS = 10;
+constexpr uint8_t PWM_CHANNEL = 0; //
+constexpr uint32_t PWM_FREQ_HZ = 8000;
+constexpr uint8_t PWM_RES_BITS = 12; // 0 - 4095 into LEDC 
 constexpr uint32_t PWM_MAX_DUTY = (1 << PWM_RES_BITS) - 1;
 
-constexpr float TARGET_RPM = 800.0f;
+constexpr float TARGET_RPM = 200.0f;
 constexpr float PULSES_PER_REV = 100.0f;
 
 constexpr uint32_t SPEED_PERIOD_MS = 10;
@@ -31,8 +31,8 @@ constexpr float CONTROL_PERIOD_S = CONTROL_PERIOD_MS / 1000.0f;
 
 // correction values
 constexpr float KP = 0.12f; // dont cause oscillation here 
-constexpr float KI = 0.05f; // adds a 'slow' buildup to the RPM
-constexpr float KD = 0.0005f; // causes a damping effect
+constexpr float KI = 0.00f; // adds a 'slow' buildup to the RPM
+constexpr float KD = 0.0000f; // causes a damping effect
 constexpr float INTEGRAL_LIMIT = 4000.0f;
 
 constexpr uint32_t TASK_STACK_SIZE = 4096; // smaller stack allocation
@@ -107,6 +107,8 @@ void speedTask(void *args) {
   }
 }
 
+float duty = 0;
+
 void controlTask(void *args) {
   (void)args;
 
@@ -118,17 +120,19 @@ void controlTask(void *args) {
 
   for (;;) {
     uint64_t taskStartUs = esp_timer_get_time();
-    float error = TARGET_RPM - motorRpm;
+    float error = motorRpm - TARGET_RPM; // can't produce positive error now 
 
     integral += error * CONTROL_PERIOD_S;
     integral = constrain(integral, -INTEGRAL_LIMIT, INTEGRAL_LIMIT);
 
     float derivative = (error - previousError) / CONTROL_PERIOD_S;
-    float duty = KP * error + KI * integral + KD * derivative;
-
-    duty = constrain(duty, 0.0f, static_cast<float>(PWM_MAX_DUTY));
-    pwmDuty = static_cast<uint32_t>(duty);
-    ledcWriteChannel(PWM_CHANNEL, pwmDuty);
+    duty += KP * error + KI * integral + KD * derivative; // accumulate over time 
+    if (duty > PWM_MAX_DUTY ) {
+      duty =  PWM_MAX_DUTY;
+    } else if (duty < 0) {
+        duty = 0;            
+    }
+    ledcWriteChannel(PWM_CHANNEL, (uint32_t)duty); // good ole casting - alex mccleod 2026 
 
     previousError = error;
     controlTaskUs += esp_timer_get_time() - taskStartUs;
@@ -155,6 +159,7 @@ void loop() {
   uint64_t speedUs = speedTaskUs;
   uint64_t controlUs = controlTaskUs;
   float controlCpu = 100.0f * controlUs / elapsedUs;
+  Serial.printf("duty is %f\n", duty);
 
   Serial.printf(
       "rpm=%.1f speed_us=%llu control_us=%llu control_cpu=%.2f%%\n",
