@@ -121,6 +121,27 @@ void compute_pwm (void *args) {
     start_task = esp_time_get_time(); 
 
     // compute pwm code here 
+    static float previous_error = 0.0f;
+    static float integral_error = 0.0f;
+    const float dt = TASK_PERIOD_IN_MS/1000.0f;
+    const float setpoint = 0.0f;// replace with desired motor speed
+    const float measured_speed = 0.0f;// replace with speed computed by motor_speed task
+    const float error =setpoint-measured_speed;
+    
+    integral_error += error * dt;
+    const float derivative_error = (error - previous_error) / dt;
+    float pwm = (Kp * error) + (Ki * integral_error) + (Kd * derivative_error);
+    
+    if (pwm < 0.0f) {
+      pwm = 0.0f;
+    } else if (pwm > ((1U << PWM_RES_BITS) - 1U)) {
+      pwm = (1U << PWM_RES_BITS) - 1U;
+    }
+    
+    previous_error = error;
+    
+    *(volatile uint32_t *)LEDC_CH0_DUTY_REG = ((uint32_t)pwm) << 4;
+    *(volatile uint32_t *)LEDC_CH0_CONF1_REG |= LEDC_PARA_UP_CH0 | LEDC_DUTY_START_CH0;
     
     taskBTotal += esp_timer_get_time() - start_task; 
     vTaskDelayUntil(&xLastWakeTime,xTimeIncrement);
